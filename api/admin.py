@@ -1,35 +1,50 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import * 
+from .models import *
 
-# Nếu bạn muốn tùy chỉnh cách UserAccount hiển thị trong admin
 class UserAccountAdmin(BaseUserAdmin):
-    # Các trường hiển thị trong list view
-    list_display = ('tendangnhap', 'email', 'ho', 'ten', 'is_staff', 'is_admin', 'is_active')
+    list_display = ('tendangnhap', 'email', 'ho', 'ten', 'is_staff', 'is_admin', 'is_active', 'is_superuser') # Thêm is_superuser
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'is_admin', 'groups')
     
-    # Các trường trong form edit/add
-    # fieldsets lấy từ BaseUserAdmin và điều chỉnh cho phù hợp với các trường của UserAccount
     fieldsets = (
         (None, {'fields': ('tendangnhap', 'password')}), # 'password' là trường của AbstractBaseUser
         ('Thông tin cá nhân', {'fields': ('ho', 'ten', 'email')}),
-        ('Quyền hạn', {'fields': ('is_active', 'is_staff', 'is_superuser', 'is_admin',
+        ('Quyền hạn', {'fields': ('is_active', 'is_staff', 'is_superuser', 'is_admin', 
                                        'groups', 'user_permissions')}),
         ('Ngày quan trọng', {'fields': ('last_login', 'date_joined')}),
     )
-    # add_fieldsets cũng tương tự cho form add user
+    
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('tendangnhap', 'email', 'ho', 'ten', 'password_1', 'password_2'), # Dùng password_1, password_2 cho việc tạo
+            # Sử dụng 'password' thay vì 'password_1' và 'password_2' nếu BaseUserAdmin xử lý form tạo user
+            # Hoặc bạn có thể cần một form tùy chỉnh cho việc add user nếu BaseUserAdmin không tự xử lý tốt
+            # với các trường tùy chỉnh của bạn khi tạo.
+            # Để đơn giản, trước mắt hãy đảm bảo các trường chính xác.
+            'fields': ('tendangnhap', 'email', 'ho', 'ten', 
+                       # BaseUserAdmin sẽ có widget cho password khi tạo mới
+                       # Nếu bạn muốn tùy chỉnh hoàn toàn, bạn sẽ cần custom form.
+                       # Thông thường, để BaseUserAdmin xử lý password khi tạo, bạn không cần khai báo tường minh ở đây.
+                       # Hãy thử bỏ 'password_1', 'password_2' nếu BaseUserAdmin tự thêm widget password.
+                       # Nếu không, bạn cần 'password_1' và 'password_2' để UserCreationForm hoạt động.
+                       # Tuy nhiên, lỗi hiện tại không phải ở đây.
+                      ),
         }),
+        # Thêm các fieldset cho quyền hạn khi tạo user nếu cần
+        ('Quyền hạn (Khi tạo)', {
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'is_admin')
+        })
     )
     search_fields = ('tendangnhap', 'email', 'ho', 'ten')
     ordering = ('tendangnhap',)
-    filter_horizontal = ('groups', 'user_permissions',) # Cho many-to-many fields
+    filter_horizontal = ('groups', 'user_permissions',)
 
-    # Nếu UserAccount có trường 'username' nhưng USERNAME_FIELD là 'tendangnhap',
-    # bạn có thể cần điều chỉnh thêm. Nhưng vì bạn không có 'username', điều này có thể không cần.
+    # XÓA HOẶC SỬA readonly_fields NẾU BẠN CÓ KHAI BÁO NÓ
+    # Nếu bạn có dòng như sau, hãy xóa 'matkhau_hashed' đi:
+    # readonly_fields = ('last_login', 'date_joined', 'matkhau_hashed')
+    # Sửa thành:
+    readonly_fields = ('last_login', 'date_joined') 
+    # Hoặc để Django tự xử lý các trường readonly mặc định của BaseUserAdmin nếu bạn không cần thêm.
 
 admin.site.register(UserAccount, UserAccountAdmin)
 
