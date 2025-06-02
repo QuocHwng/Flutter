@@ -1,27 +1,37 @@
-# api/admin.py
 from django.contrib import admin
-from .models import (
-    UserAccount, ProductCategory, Unit, Supplier, Product,
-    GoodsReceiptNote, GoodsReceiptNoteItem,
-    GoodsIssueNote, GoodsIssueNoteItem
-)
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from .models import * 
 
-@admin.register(UserAccount)
-class UserAccountAdmin(admin.ModelAdmin):
-    list_display = ('tendangnhap', 'email', 'ho', 'ten', 'is_admin', 'is_active', 'date_joined', 'last_login')
-    search_fields = ('tendangnhap', 'email', 'ho', 'ten')
-    list_filter = ('is_admin', 'is_active')
-    readonly_fields = ('date_joined', 'last_login', 'matkhau_hashed') # Không hiển thị mật khẩu băm trực tiếp để sửa
-
+# Nếu bạn muốn tùy chỉnh cách UserAccount hiển thị trong admin
+class UserAccountAdmin(BaseUserAdmin):
+    # Các trường hiển thị trong list view
+    list_display = ('tendangnhap', 'email', 'ho', 'ten', 'is_staff', 'is_admin', 'is_active')
+    list_filter = ('is_staff', 'is_superuser', 'is_active', 'is_admin', 'groups')
+    
+    # Các trường trong form edit/add
+    # fieldsets lấy từ BaseUserAdmin và điều chỉnh cho phù hợp với các trường của UserAccount
     fieldsets = (
-        (None, {'fields': ('tendangnhap', 'email')}),
-        ('Thông tin cá nhân', {'fields': ('ho', 'ten')}),
-        ('Trạng thái & Quyền', {'fields': ('is_active', 'is_admin')}),
-        ('Thông tin hệ thống', {'fields': ('date_joined', 'last_login', 'matkhau_hashed')}),
+        (None, {'fields': ('tendangnhap', 'password')}), # 'password' là trường của AbstractBaseUser
+        ('Thông tin cá nhân', {'fields': ('ho', 'ten', 'email')}),
+        ('Quyền hạn', {'fields': ('is_active', 'is_staff', 'is_superuser', 'is_admin',
+                                       'groups', 'user_permissions')}),
+        ('Ngày quan trọng', {'fields': ('last_login', 'date_joined')}),
     )
-    # Lưu ý: Không có cách dễ dàng để thay đổi mật khẩu qua admin với model này
-    # vì nó không tích hợp với hệ thống UserAdmin của Django.
-    # Bạn sẽ cần tạo một form tùy chỉnh hoặc action nếu muốn đổi mật khẩu qua admin.
+    # add_fieldsets cũng tương tự cho form add user
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('tendangnhap', 'email', 'ho', 'ten', 'password_1', 'password_2'), # Dùng password_1, password_2 cho việc tạo
+        }),
+    )
+    search_fields = ('tendangnhap', 'email', 'ho', 'ten')
+    ordering = ('tendangnhap',)
+    filter_horizontal = ('groups', 'user_permissions',) # Cho many-to-many fields
+
+    # Nếu UserAccount có trường 'username' nhưng USERNAME_FIELD là 'tendangnhap',
+    # bạn có thể cần điều chỉnh thêm. Nhưng vì bạn không có 'username', điều này có thể không cần.
+
+admin.site.register(UserAccount, UserAccountAdmin)
 
 # Các đăng ký model khác giữ nguyên, đảm bảo staff_account được hiển thị đúng
 admin.site.register(ProductCategory)
