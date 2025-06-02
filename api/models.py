@@ -1,19 +1,35 @@
 # api/models.py
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
-from django.utils import timezone # Để dùng cho date_joined
+from django.utils import timezone
 
-# --- Model UserAccount ---
 class UserAccount(models.Model):
     tendangnhap = models.CharField(max_length=100, unique=True, verbose_name="Tên đăng nhập")
     email = models.EmailField(max_length=100, unique=True, verbose_name="Email")
-    ho = models.CharField(max_length=100, verbose_name="Họ")
-    ten = models.CharField(max_length=100, verbose_name="Tên")
-    matkhau_hashed = models.CharField(max_length=128, verbose_name="Mật khẩu (đã băm)") # Đổi tên để rõ ràng
+    ho = models.CharField(max_length=100, verbose_name="Họ") # Xem xét có nên để blank=False, null=False không
+    ten = models.CharField(max_length=100, verbose_name="Tên") # Xem xét có nên để blank=False, null=False không
+    matkhau_hashed = models.CharField(max_length=128, verbose_name="Mật khẩu (đã băm)")
     is_admin = models.BooleanField(default=False, verbose_name="Là quản trị viên kho")
     is_active = models.BooleanField(default=True, verbose_name="Đang hoạt động")
     date_joined = models.DateTimeField(default=timezone.now, verbose_name="Ngày tham gia")
-    last_login = models.DateTimeField(null=True, blank=True, verbose_name="Đăng nhập lần cuối") # Tự cập nhật
+    last_login = models.DateTimeField(null=True, blank=True, verbose_name="Đăng nhập lần cuối")
+
+    # --- THÊM CÁC DÒNG SAU ---
+    USERNAME_FIELD = 'tendangnhap'
+    # REQUIRED_FIELDS xác định các trường được yêu cầu khi tạo user qua createsuperuser command
+    # Email thường là một lựa chọn tốt. Bạn cũng có thể thêm 'ho', 'ten' nếu muốn.
+    REQUIRED_FIELDS = ['email', 'ho', 'ten'] 
+    # Nếu ho và ten không bắt buộc, bạn có thể bỏ chúng khỏi REQUIRED_FIELDS
+    # và đảm bảo chúng có thể blank=True, null=True trong định nghĩa model nếu cần.
+    # Hiện tại, ho và ten của bạn không có blank=True, null=True, nghĩa là chúng bắt buộc ở mức DB.
+    # Nếu chúng bắt buộc, việc thêm vào REQUIRED_FIELDS là hợp lý.
+
+    # Bạn sẽ cần một User Manager tùy chỉnh nếu muốn dùng lệnh createsuperuser
+    # một cách đầy đủ như với AbstractUser. Nhưng ít nhất, việc khai báo
+    # USERNAME_FIELD và REQUIRED_FIELDS sẽ giải quyết lỗi check hiện tại.
+    # objects = UserAccountManager() # Sẽ cần nếu bạn muốn createsuperuser hoạt động trơn tru
+
+    # --- KẾT THÚC PHẦN THÊM ---
 
     def set_password(self, raw_password):
         self.matkhau_hashed = make_password(raw_password)
@@ -28,6 +44,7 @@ class UserAccount(models.Model):
         verbose_name = "Tài khoản người dùng (Tùy chỉnh)"
         verbose_name_plural = "Các tài khoản người dùng (Tùy chỉnh)"
         ordering = ['tendangnhap']
+
 
 # --- Các model khác (ProductCategory, Unit, Supplier, Product) ---
 # Giữ nguyên như trước, không thay đổi gì ở đây
