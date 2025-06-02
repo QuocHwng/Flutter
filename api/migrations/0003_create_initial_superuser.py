@@ -1,13 +1,17 @@
-# api/migrations/0003_create_initial_superuser.py (hoặc tên mới của bạn)
-from django.db import migrations, models # Thêm models nếu chưa có
-from django.contrib.auth import get_user_model
+# api/migrations/0003_create_initial_superuser.py (hoặc tên file tạo superuser của bạn)
+from django.db import migrations
+# from django.contrib.auth import get_user_model # Không cần thiết nếu bạn import UserAccount trực tiếp
 import os
-from django.conf import settings
-from django.utils import timezone # Vẫn cần timezone nếu bạn muốn gán last_login
+# from django.conf import settings # Không cần nếu không dùng swappable_dependency
+from django.utils import timezone
 
-def create_superuser_safe(apps, schema_editor): # Đổi tên hàm cho rõ
-    User = get_user_model()
-    
+# Import trực tiếp model UserAccount từ app 'api'
+# Điều này được phép trong data migrations nếu model đã được định nghĩa trong migration trước đó (0001_initial)
+# Hoặc dùng apps.get_model("api", "UserAccount")
+
+def create_custom_superuser(apps, schema_editor):
+    UserAccount = apps.get_model("api", "UserAccount") # Cách an toàn để lấy model trong migration
+
     DJANGO_SUPERUSER_USERNAME = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
     DJANGO_SUPERUSER_EMAIL = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@example.com')
     DJANGO_SUPERUSER_PASSWORD = os.environ.get('DJANGO_SUPERUSER_PASSWORD')
@@ -16,39 +20,35 @@ def create_superuser_safe(apps, schema_editor): # Đổi tên hàm cho rõ
         print(">>> DJANGO_SUPERUSER_PASSWORD environment variable not set. Skipping superuser creation.")
         return
 
-    username_field_name = getattr(User, 'USERNAME_FIELD', 'username')
-    filter_kwargs = {username_field_name: DJANGO_SUPERUSER_USERNAME}
-
-    if not User.objects.filter(**filter_kwargs).exists():
-        print(f">>> Attempting to create superuser: {DJANGO_SUPERUSER_USERNAME}")
+    # Kiểm tra xem user đã tồn tại chưa bằng 'tendangnhap'
+    if not UserAccount.objects.filter(tendangnhap=DJANGO_SUPERUSER_USERNAME).exists():
+        print(f">>> Attempting to create custom superuser: {DJANGO_SUPERUSER_USERNAME}")
         try:
-            # Gọi trực tiếp create_superuser.
-            # Nếu migration trước (alter_last_login_allow_null) đã chạy thành công,
-            # thì DB sẽ cho phép last_login là NULL, và create_superuser sẽ hoạt động.
-            user = User.objects.create_superuser(
-                **{username_field_name: DJANGO_SUPERUSER_USERNAME},
+            user = UserAccount(
+                tendangnhap=DJANGO_SUPERUSER_USERNAME,
                 email=DJANGO_SUPERUSER_EMAIL,
-                password=DJANGO_SUPERUSER_PASSWORD
+                ho="Super", # Bạn có thể đặt giá trị mặc định hoặc lấy từ env
+                ten="User",  # Bạn có thể đặt giá trị mặc định hoặc lấy từ env
+                is_admin=True,
+                is_active=True,
+                date_joined=timezone.now(),
+                last_login=timezone.now() # Gán luôn vì model của bạn cho phép null=True rồi
             )
-            # Tùy chọn: Nếu bạn vẫn muốn set last_login ngay, mặc dù DB đã cho phép null:
-            if hasattr(user, 'last_login'):
-                user.last_login = timezone.now()
-                user.save(update_fields=['last_login'])
-            print(f">>> Superuser {DJANGO_SUPERUSER_USERNAME} created successfully.")
+            user.set_password(DJANGO_SUPERUSER_PASSWORD) # Sử dụng phương thức set_password của bạn
+            user.save()
+            print(f">>> Custom superuser {DJANGO_SUPERUSER_USERNAME} created successfully.")
         except Exception as e:
-            print(f">>> FAILED to create superuser {DJANGO_SUPERUSER_USERNAME}. Error: {e}")
-            # QUAN TRỌNG: Ném lại lỗi để build thất bại nếu không tạo được superuser
-            # Điều này sẽ ngăn lỗi TransactionManagementError.
+            print(f">>> FAILED to create custom superuser {DJANGO_SUPERUSER_USERNAME}. Error: {e}")
             raise e 
     else:
-        print(f">>> Superuser with {username_field_name} '{DJANGO_SUPERUSER_USERNAME}' already exists.")
+        print(f">>> Custom superuser with tendangnhap '{DJANGO_SUPERUSER_USERNAME}' already exists.")
 
 class Migration(migrations.Migration):
     dependencies = [
-        # Đảm bảo dependency này trỏ đến migration sửa last_login
-        ('api', '0002_alter_last_login_allow_null'), # Tên file migration mới của bạn
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        ('api', '0002_alter_last_login_allow_null'), # Phụ thuộc vào migration sửa last_login của UserAccount
+        # Không cần swappable_dependency(settings.AUTH_USER_MODEL) ở đây nữa
+        # vì chúng ta đã xác định User model là của app 'api'
     ]
     operations = [
-        migrations.RunPython(create_superuser_safe), # Sử dụng hàm đã sửa
+        migrations.RunPython(create_custom_superuser),
     ]
