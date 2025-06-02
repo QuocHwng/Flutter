@@ -1,46 +1,79 @@
 # api/models.py
 from django.db import models
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin # THÊM IMPORT
 from django.utils import timezone
 
-class UserAccount(models.Model):
+# --- TẠO CUSTOM USER MANAGER ---
+class UserAccountManager(BaseUserManager):
+    def create_user(self, tendangnhap, email, ho, ten, password=None, **extra_fields):
+        if not tendangnhap:
+            raise ValueError('Tên đăng nhập là bắt buộc')
+        if not email:
+            raise ValueError('Email là bắt buộc')
+        
+        email = self.normalize_email(email)
+        user = self.model(
+            tendangnhap=tendangnhap, 
+            email=email, 
+            ho=ho, 
+            ten=ten, 
+            **extra_fields
+        )
+        user.set_password(password) # AbstractBaseUser có phương thức này
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, tendangnhap, email, ho, ten, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True) # Từ PermissionsMixin
+        extra_fields.setdefault('is_active', True)
+        extra_fields.setdefault('is_admin', True) # Trường is_admin tùy chỉnh của bạn (nếu vẫn muốn giữ)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser phải có is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser phải có is_superuser=True.')
+
+        return self.create_user(tendangnhap, email, ho, ten, password, **extra_fields)
+
+# --- SỬA MODEL USERACCOUNT ---
+class UserAccount(AbstractBaseUser, PermissionsMixin): # KẾ THỪA TỪ ĐÂY
     tendangnhap = models.CharField(max_length=100, unique=True, verbose_name="Tên đăng nhập")
     email = models.EmailField(max_length=100, unique=True, verbose_name="Email")
     ho = models.CharField(max_length=100, verbose_name="Họ")
     ten = models.CharField(max_length=100, verbose_name="Tên")
-    matkhau_hashed = models.CharField(max_length=128, verbose_name="Mật khẩu (đã băm)")
-    is_admin = models.BooleanField(default=False, verbose_name="Là quản trị viên kho")
+    # matkhau_hashed không cần nữa, AbstractBaseUser có trường 'password' để lưu mật khẩu đã băm.
+    
+    is_admin = models.BooleanField(default=False, verbose_name="Là quản trị viên kho (tùy chỉnh)") # Bạn có thể giữ lại nếu có logic riêng
+                                                                                             # hoặc chỉ dựa vào is_superuser và permissions.
     is_active = models.BooleanField(default=True, verbose_name="Đang hoạt động")
+    is_staff = models.BooleanField(default=False, verbose_name="Có quyền truy cập admin site") # Rất quan trọng cho admin
+    # is_superuser đã có từ PermissionsMixin
+    
     date_joined = models.DateTimeField(default=timezone.now, verbose_name="Ngày tham gia")
-    last_login = models.DateTimeField(null=True, blank=True, verbose_name="Đăng nhập lần cuối")
+    # last_login đã có trong AbstractBaseUser và được tự động cập nhật.
+
+    objects = UserAccountManager() # GÁN CUSTOM MANAGER
 
     USERNAME_FIELD = 'tendangnhap'
-    REQUIRED_FIELDS = ['email', 'ho', 'ten']
+    REQUIRED_FIELDS = ['email', 'ho', 'ten'] # Các trường yêu cầu khi tạo superuser qua CLI
 
-    @property
-    def is_anonymous(self):
-        return False
-
-    @property
-    def is_authenticated(self):
-        return self.is_active # Hoặc True nếu is_active không ảnh hưởng đến trạng thái xác thực
-
-    # Cân nhắc thêm is_staff nếu muốn dùng Django Admin
-    # is_staff = models.BooleanField(default=False, verbose_name="Có quyền truy cập admin site")
-
-
-    def set_password(self, raw_password):
-        self.matkhau_hashed = make_password(raw_password)
-
-    def check_password(self, raw_password):
-        return check_password(raw_password, self.matkhau_hashed)
+    # Các phương thức set_password, check_password đã có trong AbstractBaseUser.
+    # Các thuộc tính is_anonymous, is_authenticated cũng đã có.
 
     def __str__(self):
-        return f"{self.ho} {self.ten} ({self.tendangnhap}){' (Admin)' if self.is_admin else ''}"
+        return f"{self.ho} {self.ten} ({self.tendangnhap})"
+
+    # get_full_name và get_short_name nếu cần (PermissionsMixin có thể cung cấp chúng dựa trên các trường khác)
+    def get_full_name(self):
+        return f"{self.ho} {self.ten}".strip()
+
+    def get_short_name(self):
+        return self.ten
 
     class Meta:
-        verbose_name = "Tài khoản người dùng (Tùy chỉnh)"
-        verbose_name_plural = "Các tài khoản người dùng (Tùy chỉnh)"
+        verbose_name = "Tài khoản người dùng" # Sửa lại cho ngắn gọn hơn
+        verbose_name_plural = "Các tài khoản người dùng"
         ordering = ['tendangnhap']
 
 # --- Các model khác (ProductCategory, Unit, Supplier, Product, etc.) ---
