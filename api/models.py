@@ -6,28 +6,36 @@ from django.utils import timezone
 class UserAccount(models.Model):
     tendangnhap = models.CharField(max_length=100, unique=True, verbose_name="Tên đăng nhập")
     email = models.EmailField(max_length=100, unique=True, verbose_name="Email")
-    ho = models.CharField(max_length=100, verbose_name="Họ") # Xem xét có nên để blank=False, null=False không
-    ten = models.CharField(max_length=100, verbose_name="Tên") # Xem xét có nên để blank=False, null=False không
+    ho = models.CharField(max_length=100, verbose_name="Họ")
+    ten = models.CharField(max_length=100, verbose_name="Tên")
     matkhau_hashed = models.CharField(max_length=128, verbose_name="Mật khẩu (đã băm)")
     is_admin = models.BooleanField(default=False, verbose_name="Là quản trị viên kho")
-    is_active = models.BooleanField(default=True, verbose_name="Đang hoạt động")
+    is_active = models.BooleanField(default=True, verbose_name="Đang hoạt động") # Quan trọng cho is_authenticated
     date_joined = models.DateTimeField(default=timezone.now, verbose_name="Ngày tham gia")
     last_login = models.DateTimeField(null=True, blank=True, verbose_name="Đăng nhập lần cuối")
 
-    # --- THÊM CÁC DÒNG SAU ---
     USERNAME_FIELD = 'tendangnhap'
-    # REQUIRED_FIELDS xác định các trường được yêu cầu khi tạo user qua createsuperuser command
-    # Email thường là một lựa chọn tốt. Bạn cũng có thể thêm 'ho', 'ten' nếu muốn.
-    REQUIRED_FIELDS = ['email', 'ho', 'ten'] 
-    # Nếu ho và ten không bắt buộc, bạn có thể bỏ chúng khỏi REQUIRED_FIELDS
-    # và đảm bảo chúng có thể blank=True, null=True trong định nghĩa model nếu cần.
-    # Hiện tại, ho và ten của bạn không có blank=True, null=True, nghĩa là chúng bắt buộc ở mức DB.
-    # Nếu chúng bắt buộc, việc thêm vào REQUIRED_FIELDS là hợp lý.
+    REQUIRED_FIELDS = ['email', 'ho', 'ten']
 
-    # Bạn sẽ cần một User Manager tùy chỉnh nếu muốn dùng lệnh createsuperuser
-    # một cách đầy đủ như với AbstractUser. Nhưng ít nhất, việc khai báo
-    # USERNAME_FIELD và REQUIRED_FIELDS sẽ giải quyết lỗi check hiện tại.
-    # objects = UserAccountManager() # Sẽ cần nếu bạn muốn createsuperuser hoạt động trơn tru
+    # --- THÊM CÁC THUỘC TÍNH SAU ---
+    @property
+    def is_anonymous(self):
+        """
+        Luôn trả về False cho các instance của UserAccount.
+        User ẩn danh sẽ là một instance của AnonymousUser từ django.contrib.auth.models.
+        """
+        return False
+
+    @property
+    def is_authenticated(self):
+        """
+        Luôn trả về True cho các instance của UserAccount nếu is_active.
+        Model này đại diện cho user đã được xác thực.
+        """
+        return self.is_active # Hoặc chỉ đơn giản là True nếu bạn không dùng is_active để kiểm soát việc đăng nhập
+
+    # Bạn cũng có thể cần is_staff nếu muốn tích hợp với Django admin
+    # is_staff = models.BooleanField(default=False, verbose_name="Có quyền truy cập admin site")
 
     # --- KẾT THÚC PHẦN THÊM ---
 
