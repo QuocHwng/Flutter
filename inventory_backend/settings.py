@@ -160,6 +160,15 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# THÊM DÒNG NÀY:
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Hoặc nếu bạn không dùng Pathlib cho BASE_DIR ở trên cùng (mà bạn đang dùng):
+# STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# (Tùy chọn nhưng được khuyến nghị khi dùng WhiteNoise)
+# Để WhiteNoise nén file và tạo tên file duy nhất (cache-busting)
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
