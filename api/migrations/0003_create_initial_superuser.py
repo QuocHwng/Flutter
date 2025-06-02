@@ -46,7 +46,7 @@ def create_superuser_safe(apps, schema_editor): # Đổi tên hàm cho rõ
 class Migration(migrations.Migration):
     dependencies = [
         # Đảm bảo dependency này trỏ đến migration sửa last_login
-        ('api', '0002_alter_auth_user_last_login_null'), # Tên file migration mới của bạn
+        ('api', '0002_alter_last_login_allow_null'), # Tên file migration mới của bạn
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
     operations = [
